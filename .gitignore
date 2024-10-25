@@ -2,3 +2,6 @@ obj
 ext
 
 deploy-run.conf
+
+bin
+src

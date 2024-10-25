@@ -224,49 +224,50 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
   int batch_offset = 0;
   int batch_number = 0;
   // int test = 0;
-  while (true) {
-    TxnProto* done_txn;
-    bool got_it = scheduler->done_queue->Pop(&done_txn);
-    if (got_it == true) {
-      // We have received a finished transaction back, release the lock
-      scheduler->lock_manager_->Release(done_txn);
-      executing_txns--;
 
+  TxnProto* done_txn;
+
+  while (true) {
+    while (scheduler->done_queue->Pop(&done_txn)) {
+      executing_txns--;
       if (done_txn->writers_size() == 0 ||
           rand() % done_txn->writers_size() == 0)
         txns++;
 
+      // We have received a finished transaction back, release the lock
+      scheduler->lock_manager_->Release(done_txn);
       delete done_txn;
+      goto END;
+    }
 
-    } else {
-      // Have we run out of txns in our batch? Let's get some new ones.
-      if (batch_message == NULL) {
-        batch_message = GetBatch(batch_number, scheduler->batch_connection_);
+    // Have we run out of txns in our batch? Let's get some new ones.
+    if (batch_message == NULL) {
+      batch_message = GetBatch(batch_number, scheduler->batch_connection_);
 
-        // Done with current batch, get next.
-      } else if (batch_offset >= batch_message->data_size()) {
-        batch_offset = 0;
-        batch_number++;
-        delete batch_message;
-        batch_message = GetBatch(batch_number, scheduler->batch_connection_);
+      // Done with current batch, get next.
+    } else if (batch_offset >= batch_message->data_size()) {
+      batch_offset = 0;
+      batch_number++;
+      delete batch_message;
+      batch_message = GetBatch(batch_number, scheduler->batch_connection_);
 
-        // Current batch has remaining txns, grab up to 10.
-      } else if (executing_txns + pending_txns < 2000) {
-        for (int i = 0; i < 100; i++) {
-          if (batch_offset >= batch_message->data_size()) {
-            // Oops we ran out of txns in this batch. Stop adding txns for now.
-            break;
-          }
-          TxnProto* txn = new TxnProto();
-          txn->ParseFromString(batch_message->data(batch_offset));
-          batch_offset++;
-
-          scheduler->lock_manager_->Lock(txn);
-          pending_txns++;
+      // Current batch has remaining txns, grab up to 10.
+    } else if (executing_txns + pending_txns < 2000) {
+      for (int i = 0; i < 100; i++) {
+        if (batch_offset >= batch_message->data_size()) {
+          // Oops we ran out of txns in this batch. Stop adding txns for now.
+          break;
         }
+        TxnProto* txn = new TxnProto();
+        txn->ParseFromString(batch_message->data(batch_offset));
+        batch_offset++;
+
+        scheduler->lock_manager_->Lock(txn);
+        pending_txns++;
       }
     }
 
+  END:
     // Start executing any and all ready transactions to get them off our plate
     while (!scheduler->ready_txns_->empty()) {
       TxnProto* txn = scheduler->ready_txns_->front();

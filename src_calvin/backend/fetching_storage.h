@@ -15,6 +15,8 @@
 #include <cstring>
 #include <string>
 
+#include <signal.h>
+
 #include "common/utils.h"
 #include "backend/storage.h"
 #include "backend/simple_storage.h"

@@ -38,9 +38,9 @@ pthread_mutex_t mutex_for_item;
 class MClient : public Client {
  public:
   MClient(Configuration* config, int mp)
-      : microbenchmark(config->all_nodes.size(), HOT), config_(config),
-        percent_mp_(mp) {
-  }
+      : microbenchmark(config->all_nodes.size(), HOT),
+        config_(config),
+        percent_mp_(mp) {}
   virtual ~MClient() {}
   virtual void GetTxn(TxnProto** txn, int txn_id) {
     if (config_->all_nodes.size() > 1 && rand() % 100 < percent_mp_) {
@@ -81,23 +81,22 @@ class TClient : public Client {
     args.SerializeToString(&args_string);
 
     // New order txn
-   int random_txn_type = rand() % 100;
+    int random_txn_type = rand() % 100;
     // New order txn
-    if (random_txn_type < 45)  {
+    if (random_txn_type < 45) {
       *txn = tpcc.NewTxn(txn_id, TPCC::NEW_ORDER, args_string, config_);
-    } else if(random_txn_type < 88) {
+    } else if (random_txn_type < 88) {
       *txn = tpcc.NewTxn(txn_id, TPCC::PAYMENT, args_string, config_);
-    } else if(random_txn_type < 92) {
+    } else if (random_txn_type < 92) {
       *txn = tpcc.NewTxn(txn_id, TPCC::ORDER_STATUS, args_string, config_);
       args.set_multipartition(false);
-    } else if(random_txn_type < 96){
+    } else if (random_txn_type < 96) {
       *txn = tpcc.NewTxn(txn_id, TPCC::DELIVERY, args_string, config_);
       args.set_multipartition(false);
     } else {
       *txn = tpcc.NewTxn(txn_id, TPCC::STOCK_LEVEL, args_string, config_);
       args.set_multipartition(false);
     }
-
   }
 
  private:
@@ -106,9 +105,9 @@ class TClient : public Client {
 };
 
 void stop(int sig) {
-// #ifdef PAXOS
-//  StopZookeeper(ZOOKEEPER_CONF);
-// #endif
+  // #ifdef PAXOS
+  //  StopZookeeper(ZOOKEEPER_CONF);
+  // #endif
   exit(sig);
 }
 
@@ -133,16 +132,17 @@ int main(int argc, char** argv) {
   ConnectionMultiplexer multiplexer(&config);
 
   // Artificial loadgen clients.
-  Client* client = (argv[2][0] == 'm') ?
-      reinterpret_cast<Client*>(new MClient(&config, atoi(argv[3]))) :
-      reinterpret_cast<Client*>(new TClient(&config, atoi(argv[3])));
+  Client* client =
+      (argv[2][0] == 'm')
+          ? reinterpret_cast<Client*>(new MClient(&config, atoi(argv[3])))
+          : reinterpret_cast<Client*>(new TClient(&config, atoi(argv[3])));
 
-// #ifdef PAXOS
-//  StartZookeeper(ZOOKEEPER_CONF);
-// #endif
-pthread_mutex_init(&mutex_, NULL);
-pthread_mutex_init(&mutex_for_item, NULL);
-involed_customers = new vector<Key>;
+  // #ifdef PAXOS
+  //  StartZookeeper(ZOOKEEPER_CONF);
+  // #endif
+  pthread_mutex_init(&mutex_, NULL);
+  pthread_mutex_init(&mutex_for_item, NULL);
+  involed_customers = new vector<Key>;
 
   Storage* storage;
   if (!useFetching) {
@@ -150,9 +150,10 @@ involed_customers = new vector<Key>;
   } else {
     storage = FetchingStorage::BuildStorage();
   }
-storage->Initmutex();
+  storage->Initmutex();
   if (argv[2][0] == 'm') {
-    Microbenchmark(config.all_nodes.size(), HOT).InitializeStorage(storage, &config);
+    Microbenchmark(config.all_nodes.size(), HOT)
+        .InitializeStorage(storage, &config);
   } else {
     TPCC().InitializeStorage(storage, &config);
   }
@@ -163,18 +164,14 @@ storage->Initmutex();
 
   // Run scheduler in main thread.
   if (argv[2][0] == 'm') {
-    DeterministicScheduler scheduler(&config,
-                                     multiplexer.NewConnection("scheduler_"),
-                                     storage,
-                                     new Microbenchmark(config.all_nodes.size(), HOT));
+    DeterministicScheduler scheduler(
+        &config, multiplexer.NewConnection("scheduler_"), storage,
+        new Microbenchmark(config.all_nodes.size(), HOT));
   } else {
-    DeterministicScheduler scheduler(&config,
-                                     multiplexer.NewConnection("scheduler_"),
-                                     storage,
-                                     new TPCC());
+    DeterministicScheduler scheduler(
+        &config, multiplexer.NewConnection("scheduler_"), storage, new TPCC());
   }
 
   Spin(180);
   return 0;
 }
-

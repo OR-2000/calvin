@@ -30,7 +30,9 @@ class Microbenchmark : public Application {
 
   virtual ~Microbenchmark() {}
 
-  virtual TxnProto* NewTxn(int64 txn_id, int txn_type, string args,
+  virtual TxnProto* NewTxn(int64 txn_id,
+                           int txn_type,
+                           string args,
                            Configuration* config = NULL) const;
   virtual int Execute(TxnProto* txn, StorageManager* storage) const;
 
@@ -43,12 +45,14 @@ class Microbenchmark : public Application {
   static const int kRWSetSize = 10;  // MUST BE EVEN
   static const int kDBSize = 1000000;
 
-
   virtual void InitializeStorage(Storage* storage, Configuration* conf) const;
 
  private:
-  void GetRandomKeys(set<int>* keys, int num_keys, int key_start,
-                     int key_limit, int part);
+  void GetRandomKeys(set<int>* keys,
+                     int num_keys,
+                     int key_start,
+                     int key_limit,
+                     int part);
   Microbenchmark() {}
 };
 

@@ -21,13 +21,13 @@
 #include "proto/message.pb.h"
 #include "proto/txn.pb.h"
 #ifdef PAXOS
-# include "paxos/paxos.h"
+#include "paxos/paxos.h"
 #endif
 
 using std::map;
 using std::multimap;
-using std::set;
 using std::queue;
+using std::set;
 
 #ifdef LATENCY_TEST
 double sequencer_recv[SAMPLES];
@@ -41,51 +41,55 @@ double worker_end[SAMPLES];
 double scheduler_unlock[SAMPLES];
 #endif
 
-void* Sequencer::RunSequencerWriter(void *arg) {
+void* Sequencer::RunSequencerWriter(void* arg) {
   reinterpret_cast<Sequencer*>(arg)->RunWriter();
   return NULL;
 }
 
-void* Sequencer::RunSequencerReader(void *arg) {
+void* Sequencer::RunSequencerReader(void* arg) {
   reinterpret_cast<Sequencer*>(arg)->RunReader();
   return NULL;
 }
 
-Sequencer::Sequencer(Configuration* conf, Connection* connection,
-                     Client* client, Storage* storage)
-    : epoch_duration_(0.01), configuration_(conf), connection_(connection),
-      client_(client), storage_(storage), deconstructor_invoked_(false) {
+Sequencer::Sequencer(Configuration* conf,
+                     Connection* connection,
+                     Client* client,
+                     Storage* storage)
+    : epoch_duration_(0.01),
+      configuration_(conf),
+      connection_(connection),
+      client_(client),
+      storage_(storage),
+      deconstructor_invoked_(false) {
   pthread_mutex_init(&mutex_, NULL);
   // Start Sequencer main loops running in background thread.
 
-cpu_set_t cpuset;
-pthread_attr_t attr_writer;
-pthread_attr_init(&attr_writer);
-//pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  cpu_set_t cpuset;
+  pthread_attr_t attr_writer;
+  pthread_attr_init(&attr_writer);
+  // pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-CPU_ZERO(&cpuset);
-//CPU_SET(4, &cpuset);
-//CPU_SET(5, &cpuset);
-CPU_SET(6, &cpuset);
-//CPU_SET(7, &cpuset);
-pthread_attr_setaffinity_np(&attr_writer, sizeof(cpu_set_t), &cpuset);
-
-
+  CPU_ZERO(&cpuset);
+  // CPU_SET(4, &cpuset);
+  // CPU_SET(5, &cpuset);
+  CPU_SET(6, &cpuset);
+  // CPU_SET(7, &cpuset);
+  pthread_attr_setaffinity_np(&attr_writer, sizeof(cpu_set_t), &cpuset);
 
   pthread_create(&writer_thread_, &attr_writer, RunSequencerWriter,
-      reinterpret_cast<void*>(this));
+                 reinterpret_cast<void*>(this));
 
-CPU_ZERO(&cpuset);
-//CPU_SET(4, &cpuset);
-//CPU_SET(5, &cpuset);
-//CPU_SET(6, &cpuset);
-CPU_SET(2, &cpuset);
-pthread_attr_t attr_reader;
-pthread_attr_init(&attr_reader);
-pthread_attr_setaffinity_np(&attr_reader, sizeof(cpu_set_t), &cpuset);
+  CPU_ZERO(&cpuset);
+  // CPU_SET(4, &cpuset);
+  // CPU_SET(5, &cpuset);
+  // CPU_SET(6, &cpuset);
+  CPU_SET(2, &cpuset);
+  pthread_attr_t attr_reader;
+  pthread_attr_init(&attr_reader);
+  pthread_attr_setaffinity_np(&attr_reader, sizeof(cpu_set_t), &cpuset);
 
   pthread_create(&reader_thread_, &attr_reader, RunSequencerReader,
-      reinterpret_cast<void*>(this));
+                 reinterpret_cast<void*>(this));
 }
 
 Sequencer::~Sequencer() {
@@ -165,15 +169,12 @@ void Sequencer::RunWriter() {
   string batch_string;
   batch.set_type(MessageProto::TXN_BATCH);
 
-  for (int batch_number = configuration_->this_node_id;
-       !deconstructor_invoked_;
+  for (int batch_number = configuration_->this_node_id; !deconstructor_invoked_;
        batch_number += configuration_->all_nodes.size()) {
     // Begin epoch.
     double epoch_start = GetTime();
     batch.set_batch_number(batch_number);
     batch.clear_data();
-
-
 
     // Collect txn requests for this epoch.
     int txn_id_offset = 0;
@@ -184,13 +185,12 @@ void Sequencer::RunWriter() {
         TxnProto* txn;
         string txn_string;
         client_->GetTxn(&txn, batch_number * MAX_BATCH_SIZE + txn_id_offset);
-        
+
         // Find a bad transaction
-        if(txn->txn_id() == -1) {
+        if (txn->txn_id() == -1) {
           delete txn;
           continue;
         }
-
 
         txn->SerializeToString(&txn_string);
         batch.add_data(txn_string);
@@ -318,8 +318,9 @@ void Sequencer::RunReader() {
     // Report output.
     if (GetTime() > time + 1) {
 #ifdef VERBOSE_SEQUENCER
-      std::cout << "Submitted " << txn_count << " txns in "
-                << batch_count << " batches,\n" << std::flush;
+      std::cout << "Submitted " << txn_count << " txns in " << batch_count
+                << " batches,\n"
+                << std::flush;
 #endif
       // Reset txn count.
       time = GetTime();

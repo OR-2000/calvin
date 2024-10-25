@@ -19,8 +19,11 @@
 // Fills '*keys' with num_keys unique ints k where
 // 'key_start' <= k < 'key_limit', and k == part (mod nparts).
 // Requires: key_start % nparts == 0
-void Microbenchmark::GetRandomKeys(set<int>* keys, int num_keys, int key_start,
-                                   int key_limit, int part) {
+void Microbenchmark::GetRandomKeys(set<int>* keys,
+                                   int num_keys,
+                                   int key_start,
+                                   int key_limit,
+                                   int part) {
   assert(key_start % nparts == 0);
   keys->clear();
   for (int i = 0; i < num_keys; i++) {
@@ -28,7 +31,7 @@ void Microbenchmark::GetRandomKeys(set<int>* keys, int num_keys, int key_start,
     int key;
     do {
       key = key_start + part +
-            nparts * (rand() % ((key_limit - key_start)/nparts));
+            nparts * (rand() % ((key_limit - key_start) / nparts));
     } while (keys->count(key));
     keys->insert(key);
   }
@@ -65,10 +68,7 @@ TxnProto* Microbenchmark::MicroTxnSP(int64 txn_id, int part) {
   // Insert set of kRWSetSize - 1 random cold keys from specified partition into
   // read/write set.
   set<int> keys;
-  GetRandomKeys(&keys,
-                kRWSetSize - 1,
-                nparts * hot_records,
-                nparts * kDBSize,
+  GetRandomKeys(&keys, kRWSetSize - 1, nparts * hot_records, nparts * kDBSize,
                 part);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
@@ -95,18 +95,12 @@ TxnProto* Microbenchmark::MicroTxnMP(int64 txn_id, int part1, int part2) {
   // Insert set of kRWSetSize/2 - 1 random cold keys from each partition into
   // read/write set.
   set<int> keys;
-  GetRandomKeys(&keys,
-                kRWSetSize/2 - 1,
-                nparts * hot_records,
-                nparts * kDBSize,
-                part1);
+  GetRandomKeys(&keys, kRWSetSize / 2 - 1, nparts * hot_records,
+                nparts * kDBSize, part1);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
-  GetRandomKeys(&keys,
-                kRWSetSize/2 - 1,
-                nparts * hot_records,
-                nparts * kDBSize,
-                part2);
+  GetRandomKeys(&keys, kRWSetSize / 2 - 1, nparts * hot_records,
+                nparts * kDBSize, part2);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
 
@@ -115,8 +109,10 @@ TxnProto* Microbenchmark::MicroTxnMP(int64 txn_id, int part1, int part2) {
 
 // The load generator can be called externally to return a transaction proto
 // containing a new type of transaction.
-TxnProto* Microbenchmark::NewTxn(int64 txn_id, int txn_type,
-                                 string args, Configuration* config) const {
+TxnProto* Microbenchmark::NewTxn(int64 txn_id,
+                                 int txn_type,
+                                 string args,
+                                 Configuration* config) const {
   return NULL;
 }
 
@@ -130,25 +126,23 @@ int Microbenchmark::Execute(TxnProto* txn, StorageManager* storage) const {
     // Not necessary since storage already has a pointer to val.
     //   storage->PutObject(txn->read_write_set(i), val);
 
-    // The following code is for microbenchmark "long" transaction, uncomment it if for "long" transaction
+    // The following code is for microbenchmark "long" transaction, uncomment it
+    // if for "long" transaction
     /**int x = 1;
       for(int i = 0; i < 1100; i++) {
         x = x*x+1;
         x = x+10;
         x = x-2;
       }**/
-
   }
   return 0;
 }
 
 void Microbenchmark::InitializeStorage(Storage* storage,
                                        Configuration* conf) const {
-  for (int i = 0; i < nparts*kDBSize; i++) {
+  for (int i = 0; i < nparts * kDBSize; i++) {
     if (conf->LookupPartition(IntToString(i)) == conf->this_node_id) {
       storage->PutObject(IntToString(i), new Value(IntToString(i)));
-
     }
   }
 }
-

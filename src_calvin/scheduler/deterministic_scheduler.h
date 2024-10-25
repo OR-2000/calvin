@@ -25,7 +25,7 @@ using std::deque;
 namespace zmq {
 class socket_t;
 class message_t;
-}
+}  // namespace zmq
 using zmq::socket_t;
 
 class Configuration;
@@ -39,14 +39,16 @@ class TxnProto;
 
 class DeterministicScheduler : public Scheduler {
  public:
-  DeterministicScheduler(Configuration* conf, Connection* batch_connection,
-                         Storage* storage, const Application* application);
+  DeterministicScheduler(Configuration* conf,
+                         Connection* batch_connection,
+                         Storage* storage,
+                         const Application* application);
   virtual ~DeterministicScheduler();
 
  private:
   // Function for starting main loops in a separate pthreads.
   static void* RunWorkerThread(void* arg);
-  
+
   static void* LockManagerThread(void* arg);
 
   void SendTxnPtr(socket_t* socket, TxnProto* txn);
@@ -65,7 +67,7 @@ class DeterministicScheduler : public Scheduler {
 
   // Storage layer used in application execution.
   Storage* storage_;
-  
+
   // Application currently being run.
   const Application* application_;
 
@@ -79,15 +81,14 @@ class DeterministicScheduler : public Scheduler {
   std::deque<TxnProto*>* ready_txns_;
 
   // Sockets for communication between main scheduler thread and worker threads.
-//  socket_t* requests_out_;
-//  socket_t* requests_in_;
-//  socket_t* responses_out_[NUM_THREADS];
-//  socket_t* responses_in_;
-  
+  //  socket_t* requests_out_;
+  //  socket_t* requests_in_;
+  //  socket_t* responses_out_[NUM_THREADS];
+  //  socket_t* responses_in_;
+
   AtomicQueue<TxnProto*>* txns_queue;
   AtomicQueue<TxnProto*>* done_queue;
-  
+
   AtomicQueue<MessageProto>* message_queues[NUM_THREADS];
-  
 };
 #endif  // _DB_SCHEDULER_DETERMINISTIC_SCHEDULER_H_

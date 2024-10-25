@@ -41,7 +41,9 @@ class TPCC : public Application {
   virtual ~TPCC() {}
 
   // Load generator for a new transaction
-  virtual TxnProto* NewTxn(int64 txn_id, int txn_type, string args,
+  virtual TxnProto* NewTxn(int64 txn_id,
+                           int txn_type,
+                           string args,
                            Configuration* config) const;
 
   // The key converter takes a valid key (string) and converts it to an id
@@ -83,8 +85,8 @@ class TPCC : public Application {
   // Simple execution of a transaction using a given storage
   virtual int Execute(TxnProto* txn, StorageManager* storage) const;
 
-/* TODO(Thad): Uncomment once testing friend class exists
- private: */
+  /* TODO(Thad): Uncomment once testing friend class exists
+   private: */
   // When the first transaction is called, the following function initializes
   // a set of fake data for use in the application
   virtual void InitializeStorage(Storage* storage, Configuration* conf) const;

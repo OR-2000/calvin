@@ -53,5 +53,8 @@ message TxnProto {
   // Node ids of nodes that participate as readers and writers in this txn.
   repeated int32 readers = 40;
   repeated int32 writers = 41;
+
+  repeated bytes contented_keys = 42;
+  repeated bytes uncontented_keys = 43;
 }
 

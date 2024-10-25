@@ -34,7 +34,9 @@ class DeterministicLockManager;
 class Storage;
 class TxnProto;
 
-#define NUM_THREADS 4
+#define NUM_CORE 36
+#define NUM_THREADS (NUM_CORE - 4)
+// RunMultiplexer, RunSequencerWriter, RunSequencerReader, LockManagerThread
 // #define PREFETCHING
 
 class DeterministicScheduler : public Scheduler {

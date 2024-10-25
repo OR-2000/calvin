@@ -45,8 +45,16 @@ int DeterministicLockManager::Lock(TxnProto* txn) {
       if (requests->empty() || txn != requests->back().txn) {
         requests->push_back(LockRequest(WRITE, txn));
         // Write lock request fails if there is any previous request at all.
-        if (requests->size() > 1)
+        if (requests->size() > 1) {
           not_acquired++;
+          it->failed_cnt_++;
+        }
+      }
+
+      if (10 < it->failed_cnt_) {
+        txn->add_contented_keys(txn->read_write_set(i));
+      } else {
+        txn->add_uncontented_keys(txn->read_write_set(i));
       }
     }
   }
@@ -74,13 +82,20 @@ int DeterministicLockManager::Lock(TxnProto* txn) {
       if (requests->empty() || txn != requests->back().txn) {
         requests->push_back(LockRequest(READ, txn));
         // Read lock request fails if there is any previous write request.
-        for (deque<LockRequest>::iterator it = requests->begin();
-             it != requests->end(); ++it) {
-          if (it->mode == WRITE) {
+        for (deque<LockRequest>::iterator itr = requests->begin();
+             itr != requests->end(); ++itr) {
+          if (itr->mode == WRITE) {
             not_acquired++;
+            it->failed_cnt_++;
             break;
           }
         }
+      }
+
+      if (10 < it->failed_cnt_) {
+        txn->add_contented_keys(txn->read_set(i));
+      } else {
+        txn->add_uncontented_keys(txn->read_set(i));
       }
     }
   }
@@ -93,18 +108,15 @@ int DeterministicLockManager::Lock(TxnProto* txn) {
   return not_acquired;
 }
 
-void DeterministicLockManager::Release(TxnProto* txn) {
-  for (int i = 0; i < txn->read_set_size(); i++)
-    if (IsLocal(txn->read_set(i)))
-      Release(txn->read_set(i), txn);
-  // Currently commented out because nothing in any write set can conflict
-  // in TPCC or Microbenchmark.
-  //  for (int i = 0; i < txn->write_set_size(); i++)
-  //    if (IsLocal(txn->write_set(i)))
-  //      Release(txn->write_set(i), txn);
-  for (int i = 0; i < txn->read_write_set_size(); i++)
-    if (IsLocal(txn->read_write_set(i)))
-      Release(txn->read_write_set(i), txn);
+void DeterministicLockManager::ReleaseUncontentedKeys(TxnProto* txn) {
+  for (int i = 0; i < txn->uncontented_keys_size(); i++)
+    if (IsLocal(txn->uncontented_keys(i)))
+      Release(txn->uncontented_keys(i), txn);
+}
+void DeterministicLockManager::ReleaseContentedKeys(TxnProto* txn) {
+  for (int i = 0; i < txn->contented_keys_size(); i++)
+    if (IsLocal(txn->contented_keys(i)))
+      Release(txn->contented_keys(i), txn);
 }
 
 void DeterministicLockManager::Release(const Key& key, TxnProto* txn) {

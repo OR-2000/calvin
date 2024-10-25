@@ -27,7 +27,9 @@ class DeterministicLockManager {
   virtual ~DeterministicLockManager() {}
   virtual int Lock(TxnProto* txn);
   virtual void Release(const Key& key, TxnProto* txn);
-  virtual void Release(TxnProto* txn);
+
+  virtual void ReleaseUncontentedKeys(TxnProto* txn);
+  virtual void ReleaseContentedKeys(TxnProto* txn);
 
  private:
   int Hash(const Key& key) {
@@ -64,6 +66,7 @@ class DeterministicLockManager {
     KeysList(Key m, deque<LockRequest>* t) : key(m), locksrequest(t) {}
     Key key;
     deque<LockRequest>* locksrequest;
+    uint64_t failed_cnt_ = 0;
   };
 
   deque<KeysList>* lock_table_[TABLE_SIZE];

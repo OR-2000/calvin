@@ -225,7 +225,11 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
   int batch_number = 0;
   // int test = 0;
 
+  int contented_rows = 0;
+  int uncontented_rows = 0;
+
   TxnProto* done_txn;
+  std::deque<TxnProto*> releases;
 
   while (true) {
     while (scheduler->done_queue->Pop(&done_txn)) {
@@ -235,8 +239,9 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
         txns++;
 
       // We have received a finished transaction back, release the lock
-      scheduler->lock_manager_->Release(done_txn);
-      delete done_txn;
+      scheduler->lock_manager_->ReleaseContentedKeys(done_txn);
+      contented_rows -= done_txn->contented_keys_size();
+      releases.push_back(done_txn);
       goto END;
     }
 
@@ -263,6 +268,9 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
         batch_offset++;
 
         scheduler->lock_manager_->Lock(txn);
+        uncontented_rows += txn->uncontented_keys_size();
+        contented_rows += txn->contented_keys_size();
+
         pending_txns++;
       }
     }
@@ -292,6 +300,16 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
       txns = 0;
       // test ++;
     }
+
+    // if (NUM_CORE < executing_txns) {
+    while (!releases.empty()) {
+      done_txn = releases.front();
+      releases.pop_front();
+      scheduler->lock_manager_->ReleaseUncontentedKeys(done_txn);
+      uncontented_rows -= done_txn->uncontented_keys_size();
+      delete done_txn;
+    }
+    // }
   }
   return NULL;
 }

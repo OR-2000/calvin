@@ -18,6 +18,7 @@
 #include "common/configuration.h"
 #include "common/connection.h"
 #include "common/utils.h"
+#include "common/definitions.hh"
 #include "proto/message.pb.h"
 #include "proto/txn.pb.h"
 #ifdef PAXOS
@@ -55,7 +56,7 @@ Sequencer::Sequencer(Configuration* conf,
                      Connection* connection,
                      Client* client,
                      Storage* storage)
-    : epoch_duration_(0.01),
+    : epoch_duration_(EPOCH_DURATION),
       configuration_(conf),
       connection_(connection),
       client_(client),

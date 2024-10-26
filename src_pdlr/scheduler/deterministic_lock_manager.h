@@ -13,17 +13,17 @@
 #include "common/configuration.h"
 #include "scheduler/lock_manager.h"
 #include "common/utils.h"
+#include "common/definitions.hh"
 
 using std::deque;
 using std::tr1::unordered_map;
-
-#define TABLE_SIZE 1000000
 
 class TxnProto;
 
 class DeterministicLockManager {
  public:
-  DeterministicLockManager(deque<TxnProto*>* ready_txns, Configuration* config);
+  DeterministicLockManager(AtomicQueue<TxnProto*>* ready_txns,
+                           Configuration* config);
   virtual ~DeterministicLockManager() {}
   virtual int Lock(TxnProto* txn);
   virtual void Release(const Key& key, TxnProto* txn);

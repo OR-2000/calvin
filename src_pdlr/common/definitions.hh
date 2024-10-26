@@ -7,7 +7,7 @@
 
 #define COLD_CUTOFF 990000  // default 990000
 
-#define RW_SET_SIZE 1    // MUST BE EVEN, default 10
+#define RW_SET_SIZE 10   // MUST BE EVEN, default 10
 #define DB_SIZE 1000000  // default 1000000
 
 #define NUM_CORE 36

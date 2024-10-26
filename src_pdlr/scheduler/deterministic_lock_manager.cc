@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "proto/txn.pb.h"
+#include "common/definitions.hh"
 
 using std::vector;
 
@@ -51,7 +52,7 @@ int DeterministicLockManager::Lock(TxnProto* txn) {
         }
       }
 
-      if (10 < it->failed_cnt_) {
+      if (MAX_FAILED_LOCK < it->failed_cnt_) {
         txn->add_contented_keys(txn->read_write_set(i));
       } else {
         txn->add_uncontented_keys(txn->read_write_set(i));
@@ -92,7 +93,7 @@ int DeterministicLockManager::Lock(TxnProto* txn) {
         }
       }
 
-      if (10 < it->failed_cnt_) {
+      if (MAX_FAILED_LOCK < it->failed_cnt_) {
         txn->add_contented_keys(txn->read_set(i));
       } else {
         txn->add_uncontented_keys(txn->read_set(i));

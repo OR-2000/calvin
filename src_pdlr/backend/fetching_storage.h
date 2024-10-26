@@ -18,13 +18,12 @@
 #include <signal.h>
 
 #include "common/utils.h"
+#include "common/definitions.hh"
 #include "backend/storage.h"
 #include "backend/simple_storage.h"
 
 #define PAGE_SIZE 1000
 #define STORAGE_PATH "../db/storage/"
-
-#define COLD_CUTOFF 990000
 
 class FetchingStorage : public Storage {
  public:

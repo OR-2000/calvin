@@ -24,6 +24,7 @@
 #include "common/utils.h"
 #include "common/zmq.hpp"
 #include "common/connection.h"
+#include "common/definitions.hh"
 #include "backend/storage.h"
 #include "backend/storage_manager.h"
 #include "proto/message.pb.h"
@@ -74,7 +75,7 @@ DeterministicScheduler::DeterministicScheduler(Configuration* conf,
   txns_queue = new AtomicQueue<TxnProto*>();
   done_queue = new AtomicQueue<TxnProto*>();
 
-  for (int i = 0; i < NUM_THREADS; i++) {
+  for (int i = 0; i < NUM_WORKERS; i++) {
     message_queues[i] = new AtomicQueue<MessageProto>();
   }
 
@@ -93,7 +94,7 @@ DeterministicScheduler::DeterministicScheduler(Configuration* conf,
                  reinterpret_cast<void*>(this));
 
   // Start all worker threads.
-  for (int i = 0; i < NUM_THREADS; i++) {
+  for (int i = 0; i < NUM_WORKERS; i++) {
     string channel("scheduler");
     channel.append(IntToString(i));
     thread_connections_[i] = batch_connection_->multiplexer()->NewConnection(
@@ -102,7 +103,7 @@ DeterministicScheduler::DeterministicScheduler(Configuration* conf,
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     CPU_ZERO(&cpuset);
-    CPU_SET(i, &cpuset);
+    CPU_SET(i % NUM_WORKERS_CORE, &cpuset);
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 
     pthread_create(&(threads_[i]), &attr, RunWorkerThread,
@@ -231,6 +232,16 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
   TxnProto* done_txn;
   std::deque<TxnProto*> releases;
 
+  int tasks[Task::Size] = {0};
+
+  std::string task_names[Task::Size] = {"ProcessDoneTransaction",
+                                        "ReleaseUnContentedLock",
+                                        "LoadNextBatch",
+                                        "AdvanceBatch",
+                                        "Locking",
+                                        "ProcessReadyTransaction"};
+  int contented_keys_size;
+
   while (true) {
     while (scheduler->done_queue->Pop(&done_txn)) {
       executing_txns--;
@@ -239,26 +250,40 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
         txns++;
 
       // We have received a finished transaction back, release the lock
-      scheduler->lock_manager_->ReleaseContentedKeys(done_txn);
-      contented_rows -= done_txn->contented_keys_size();
-      releases.push_back(done_txn);
+      contented_keys_size = done_txn->contented_keys_size();
+      if (0 < contented_keys_size) {
+        scheduler->lock_manager_->ReleaseContentedKeys(done_txn);
+        contented_rows -= contented_keys_size;
+      }
+
+      if (0 < done_txn->uncontented_keys_size()) {
+        releases.push_back(done_txn);
+      } else {
+        delete done_txn;
+      }
+
+      tasks[Task::ProcessDoneTransaction]++;
       goto END;
     }
 
     // Have we run out of txns in our batch? Let's get some new ones.
     if (batch_message == NULL) {
       batch_message = GetBatch(batch_number, scheduler->batch_connection_);
-
       // Done with current batch, get next.
+      if (batch_message != NULL)
+        tasks[Task::LoadNextBatch] += batch_message->data_size();
+      goto END;
     } else if (batch_offset >= batch_message->data_size()) {
       batch_offset = 0;
       batch_number++;
       delete batch_message;
       batch_message = GetBatch(batch_number, scheduler->batch_connection_);
-
       // Current batch has remaining txns, grab up to 10.
-    } else if (executing_txns + pending_txns < 2000) {
-      for (int i = 0; i < 100; i++) {
+      if (batch_message != NULL)
+        tasks[Task::AdvanceBatch] += batch_message->data_size();
+      goto END;
+    } else if (executing_txns + pending_txns < MAX_ACTIVE_TXNS) {
+      for (int i = 0; i < LOCK_BATCH_SIZE; i++) {
         if (batch_offset >= batch_message->data_size()) {
           // Oops we ran out of txns in this batch. Stop adding txns for now.
           break;
@@ -272,7 +297,9 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
         contented_rows += txn->contented_keys_size();
 
         pending_txns++;
+        tasks[Task::Locking]++;
       }
+      goto END;
     }
 
   END:
@@ -284,21 +311,7 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
       executing_txns++;
 
       scheduler->txns_queue->Push(txn);
-    }
-
-    // Report throughput.
-    if (GetTime() > time + 1) {
-      double total_time = GetTime() - time;
-      std::cout << "Completed " << (static_cast<double>(txns) / total_time)
-                << " txns/sec, "
-                //<< test<< " for drop speed , "
-                << executing_txns << " executing, " << pending_txns
-                << " pending\n"
-                << std::flush;
-      // Reset txn count.
-      time = GetTime();
-      txns = 0;
-      // test ++;
+      tasks[Task::ProcessReadyTransaction]++;
     }
 
     // if (NUM_CORE < executing_txns) {
@@ -308,8 +321,34 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
       scheduler->lock_manager_->ReleaseUncontentedKeys(done_txn);
       uncontented_rows -= done_txn->uncontented_keys_size();
       delete done_txn;
+      tasks[Task::ReleaseUnContentedLock]++;
     }
     // }
+
+    // Report throughput.
+    if (GetTime() > time + 1) {
+      double total_time = GetTime() - time;
+
+      std::string task_output = "Tasks: ";
+      for (int i = 0; i < Task::Size; i++) {
+        task_output.append(task_names[i] + ": " + std::to_string(tasks[i]) +
+                           ", ");
+      }
+
+      std::cout << "Completed " << (static_cast<double>(txns) / total_time)
+                << " txns/sec, "
+                //<< test<< " for drop speed , "
+                << executing_txns << " executing, " << pending_txns
+                << " pending, " << uncontented_rows << " uncontented, "
+                << contented_rows << " contented, " << "\n"
+                << task_output << "\n"
+                << std::flush;
+      // Reset txn count.
+      time = GetTime();
+      txns = 0;
+      // test ++;
+      memset(tasks, 0, sizeof(tasks));
+    }
   }
   return NULL;
 }

@@ -45,9 +45,9 @@ TEST(MicrobenchmarkTest) {
 
   // Check post-execution storage state.
   set<int> write_set;
-  for (int i = 0; i < Microbenchmark::kRWSetSize; i++)
+  for (int i = 0; i < Microbenchmark::RW_SET_SIZE; i++)
     write_set.insert(StringToInt(txn->write_set(i)));
-  for (int i = 0; i < microbenchmark.kDBSize; i++) {
+  for (int i = 0; i < microbenchmark.DB_SIZE; i++) {
     if (write_set.count(i))
       CHECK_OBJECT(IntToString(i), IntToString(i + 1));
     else

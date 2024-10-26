@@ -181,10 +181,11 @@ void Sequencer::RunWriter() {
     while (!deconstructor_invoked_ &&
            GetTime() < epoch_start + epoch_duration_) {
       // Add next txn request to batch.
-      if (batch.data_size() < MAX_BATCH_SIZE) {
+      if (batch.data_size() < MAX_LOCK_BATCH_SIZE) {
         TxnProto* txn;
         string txn_string;
-        client_->GetTxn(&txn, batch_number * MAX_BATCH_SIZE + txn_id_offset);
+        client_->GetTxn(&txn,
+                        batch_number * MAX_LOCK_BATCH_SIZE + txn_id_offset);
 
         // Find a bad transaction
         if (txn->txn_id() == -1) {

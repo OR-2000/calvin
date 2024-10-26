@@ -11,19 +11,26 @@
 #include <string>
 
 #include "applications/application.h"
+#include "common/definitions.hh"
+#include "common/random.hh"
+#include "common/zipf.hh"
 
 using std::set;
 using std::string;
 
 class Microbenchmark : public Application {
  public:
+  Xoroshiro128Plus rnd_;
+  FastZipf zipf_;
+
   enum TxnType {
     INITIALIZE = 0,
     MICROTXN_SP = 1,
     MICROTXN_MP = 2,
   };
 
-  Microbenchmark(int nodecount, int hotcount) {
+  Microbenchmark(int nodecount, int hotcount)
+      : rnd_(), zipf_(&rnd_, SKEW, DB_SIZE) {
     nparts = nodecount;
     hot_records = hotcount;
   }
@@ -42,8 +49,6 @@ class Microbenchmark : public Application {
 
   int nparts;
   int hot_records;
-  static const int kRWSetSize = 10;  // MUST BE EVEN
-  static const int kDBSize = 1000000;
 
   virtual void InitializeStorage(Storage* storage, Configuration* conf) const;
 
@@ -53,7 +58,7 @@ class Microbenchmark : public Application {
                      int key_start,
                      int key_limit,
                      int part);
-  Microbenchmark() {}
+  Microbenchmark() : rnd_(), zipf_(&rnd_, SKEW, DB_SIZE) {}
 };
 
 #endif  // _DB_APPLICATIONS_MICROBENCHMARK_H_

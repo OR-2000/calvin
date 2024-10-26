@@ -17,6 +17,7 @@
 
 #include "scheduler/scheduler.h"
 #include "common/utils.h"
+#include "common/definitions.hh"
 #include "proto/txn.pb.h"
 #include "proto/message.pb.h"
 
@@ -34,13 +35,20 @@ class DeterministicLockManager;
 class Storage;
 class TxnProto;
 
-#define NUM_CORE 36
-#define NUM_THREADS (NUM_CORE - 4)
-// RunMultiplexer, RunSequencerWriter, RunSequencerReader, LockManagerThread
 // #define PREFETCHING
 
 class DeterministicScheduler : public Scheduler {
  public:
+  enum Task {
+    ProcessDoneTransaction,
+    ReleaseUnContentedLock,
+    LoadNextBatch,
+    AdvanceBatch,
+    Locking,
+    ProcessReadyTransaction,
+    Size
+  };
+
   DeterministicScheduler(Configuration* conf,
                          Connection* batch_connection,
                          Storage* storage,
@@ -60,8 +68,8 @@ class DeterministicScheduler : public Scheduler {
   Configuration* configuration_;
 
   // Thread contexts and their associated Connection objects.
-  pthread_t threads_[NUM_THREADS];
-  Connection* thread_connections_[NUM_THREADS];
+  pthread_t threads_[NUM_WORKERS];
+  Connection* thread_connections_[NUM_WORKERS];
 
   pthread_t lock_manager_thread_;
   // Connection for receiving txn batches from sequencer.
@@ -85,12 +93,12 @@ class DeterministicScheduler : public Scheduler {
   // Sockets for communication between main scheduler thread and worker threads.
   //  socket_t* requests_out_;
   //  socket_t* requests_in_;
-  //  socket_t* responses_out_[NUM_THREADS];
+  //  socket_t* responses_out_[NUM_WORKERS];
   //  socket_t* responses_in_;
 
   AtomicQueue<TxnProto*>* txns_queue;
   AtomicQueue<TxnProto*>* done_queue;
 
-  AtomicQueue<MessageProto>* message_queues[NUM_THREADS];
+  AtomicQueue<MessageProto>* message_queues[NUM_WORKERS];
 };
 #endif  // _DB_SCHEDULER_DETERMINISTIC_SCHEDULER_H_

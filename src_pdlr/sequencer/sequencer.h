@@ -11,11 +11,9 @@
 #include <string>
 #include <queue>
 
+#include "common/definitions.hh"
 // #define PAXOS
 // #define PREFETCHING
-#define COLD_CUTOFF 990000
-
-#define MAX_BATCH_SIZE 200
 
 #define SAMPLES 100000
 #define SAMPLE_RATE 999

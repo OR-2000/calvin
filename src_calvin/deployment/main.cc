@@ -6,11 +6,13 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 
 #include "applications/microbenchmark.h"
 #include "applications/tpcc.h"
 #include "common/configuration.h"
 #include "common/connection.h"
+#include "common/definitions.hh"
 #include "backend/simple_storage.h"
 #include "backend/fetching_storage.h"
 #include "backend/collapsed_versioned_storage.h"
@@ -18,8 +20,6 @@
 #include "scheduler/deterministic_scheduler.h"
 #include "sequencer/sequencer.h"
 #include "proto/tpcc_args.pb.h"
-
-#define HOT 10000
 
 map<Key, Key> latest_order_id_for_customer;
 map<Key, int> latest_order_id_for_district;
@@ -118,6 +118,21 @@ int main(int argc, char** argv) {
             argv[0]);
     exit(1);
   }
+
+  std::cout << "MAX_ACTIVE_TXNS: " << MAX_ACTIVE_TXNS << std::endl;
+  std::cout << "LOCK_BATCH_SIZE: " << LOCK_BATCH_SIZE << std::endl;
+  std::cout << "HOT: " << HOT << std::endl;
+  std::cout << "COLD_CUTOFF: " << COLD_CUTOFF << std::endl;
+  std::cout << "RW_SET_SIZE: " << RW_SET_SIZE << std::endl;
+  std::cout << "DB_SIZE: " << DB_SIZE << std::endl;
+  std::cout << "NUM_CORE: " << NUM_CORE << std::endl;
+  std::cout << "NUM_THREADS: " << NUM_THREADS << std::endl;
+  std::cout << "NUM_BACKGROUND_THREADS: " << NUM_BACKGROUND_THREADS
+            << std::endl;
+  std::cout << "NUM_WORKERS_CORE: " << NUM_WORKERS_CORE << std::endl;
+  std::cout << "NUM_WORKERS: " << NUM_WORKERS << std::endl;
+  std::cout << "SKEW: " << SKEW << std::endl;
+
   bool useFetching = false;
   if (argc > 4 && argv[4][0] == 'f')
     useFetching = true;

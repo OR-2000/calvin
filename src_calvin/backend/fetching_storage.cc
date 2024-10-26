@@ -4,6 +4,7 @@
 // main memory, disk, and swapping algorithms.
 
 #include "backend/fetching_storage.h"
+#include "common/definitions.hh"
 
 typedef FetchingStorage::Latch Latch;
 

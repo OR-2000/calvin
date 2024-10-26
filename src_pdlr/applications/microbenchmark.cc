@@ -11,10 +11,10 @@
 #include "backend/storage_manager.h"
 #include "common/utils.h"
 #include "common/configuration.h"
+#include "common/definitions.hh"
 #include "proto/txn.pb.h"
 
 // #define PREFETCHING
-#define COLD_CUTOFF 990000
 
 // Fills '*keys' with num_keys unique ints k where
 // 'key_start' <= k < 'key_limit', and k == part (mod nparts).
@@ -31,7 +31,7 @@ void Microbenchmark::GetRandomKeys(set<int>* keys,
     int key;
     do {
       key = key_start + part +
-            nparts * (rand() % ((key_limit - key_start) / nparts));
+            nparts * (zipf_() % ((key_limit - key_start) / nparts));
     } while (keys->count(key));
     keys->insert(key);
   }
@@ -46,7 +46,7 @@ TxnProto* Microbenchmark::InitializeTxn() {
   txn->set_txn_type(INITIALIZE);
 
   // Nothing read, everything written.
-  for (int i = 0; i < kDBSize; i++)
+  for (int i = 0; i < DB_SIZE; i++)
     txn->add_write_set(IntToString(i));
 
   return txn;
@@ -61,14 +61,14 @@ TxnProto* Microbenchmark::MicroTxnSP(int64 txn_id, int part) {
   txn->set_txn_id(txn_id);
   txn->set_txn_type(MICROTXN_SP);
 
-  // Add one hot key to read/write set.
-  int hotkey = part + nparts * (rand() % hot_records);
-  txn->add_read_write_set(IntToString(hotkey));
+  // // Add one hot key to read/write set.
+  // int hotkey = part + nparts * (rand() % hot_records);
+  // txn->add_read_write_set(IntToString(hotkey));
 
-  // Insert set of kRWSetSize - 1 random cold keys from specified partition into
-  // read/write set.
+  // Insert set of RW_SET_SIZE - 1 random cold keys from specified partition
+  // into read/write set.
   set<int> keys;
-  GetRandomKeys(&keys, kRWSetSize - 1, nparts * hot_records, nparts * kDBSize,
+  GetRandomKeys(&keys, RW_SET_SIZE, nparts * hot_records, nparts * DB_SIZE,
                 part);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
@@ -92,15 +92,15 @@ TxnProto* Microbenchmark::MicroTxnMP(int64 txn_id, int part1, int part2) {
   txn->add_read_write_set(IntToString(hotkey1));
   txn->add_read_write_set(IntToString(hotkey2));
 
-  // Insert set of kRWSetSize/2 - 1 random cold keys from each partition into
+  // Insert set of RW_SET_SIZE/2 - 1 random cold keys from each partition into
   // read/write set.
   set<int> keys;
-  GetRandomKeys(&keys, kRWSetSize / 2 - 1, nparts * hot_records,
-                nparts * kDBSize, part1);
+  GetRandomKeys(&keys, RW_SET_SIZE / 2 - 1, nparts * hot_records,
+                nparts * DB_SIZE, part1);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
-  GetRandomKeys(&keys, kRWSetSize / 2 - 1, nparts * hot_records,
-                nparts * kDBSize, part2);
+  GetRandomKeys(&keys, RW_SET_SIZE / 2 - 1, nparts * hot_records,
+                nparts * DB_SIZE, part2);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
 
@@ -120,7 +120,7 @@ int Microbenchmark::Execute(TxnProto* txn, StorageManager* storage) const {
   // Read all elements of 'txn->read_set()', add one to each, write them all
   // back out.
 
-  for (int i = 0; i < kRWSetSize; i++) {
+  for (int i = 0; i < RW_SET_SIZE; i++) {
     Value* val = storage->ReadObject(txn->read_write_set(i));
     *val = IntToString(StringToInt(*val) + 1);
     // Not necessary since storage already has a pointer to val.
@@ -140,7 +140,7 @@ int Microbenchmark::Execute(TxnProto* txn, StorageManager* storage) const {
 
 void Microbenchmark::InitializeStorage(Storage* storage,
                                        Configuration* conf) const {
-  for (int i = 0; i < nparts * kDBSize; i++) {
+  for (int i = 0; i < nparts * DB_SIZE; i++) {
     if (conf->LookupPartition(IntToString(i)) == conf->this_node_id) {
       storage->PutObject(IntToString(i), new Value(IntToString(i)));
     }

@@ -24,8 +24,6 @@
 #define PAGE_SIZE 1000
 #define STORAGE_PATH "../db/storage/"
 
-#define COLD_CUTOFF 990000
-
 class FetchingStorage : public Storage {
  public:
   static FetchingStorage* BuildStorage();

@@ -38,7 +38,7 @@ class DeterministicLockManager {
       hash = hash ^ (key[i]);
       hash = hash * 16777619;
     }
-    return hash % TABLE_SIZE;
+    return hash % LOCK_TABLE_SIZE;
   }
 
   bool IsLocal(const Key& key) {
@@ -69,7 +69,7 @@ class DeterministicLockManager {
     uint64_t failed_cnt_ = 0;
   };
 
-  deque<KeysList>* lock_table_[TABLE_SIZE];
+  deque<KeysList>* lock_table_[LOCK_TABLE_SIZE];
 
   // Queue of pointers to transactions that have acquired all locks that
   // they have requested. 'ready_txns_[key].front()' is the owner of the lock

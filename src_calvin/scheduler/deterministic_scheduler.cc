@@ -235,7 +235,7 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
   TxnProto* done_txn;
 
   while (true) {
-    while (scheduler->done_queue->Pop(&done_txn)) {
+    if (scheduler->done_queue->Pop(&done_txn)) {
       executing_txns--;
       if (done_txn->writers_size() == 0 ||
           rand() % done_txn->writers_size() == 0)
@@ -253,8 +253,8 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
       batch_message = GetBatch(batch_number, scheduler->batch_connection_);
       if (batch_message != NULL)
         tasks[Task::LoadNextBatch] += batch_message->data_size();
-      goto END;
       // Done with current batch, get next.
+      goto END;
     } else if (batch_offset >= batch_message->data_size()) {
       batch_offset = 0;
       batch_number++;
@@ -265,7 +265,9 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
       if (batch_message != NULL)
         tasks[Task::AdvanceBatch] += batch_message->data_size();
       goto END;
-    } else if (executing_txns + pending_txns < MAX_ACTIVE_TXNS) {
+    }
+
+    if (executing_txns + pending_txns < MAX_ACTIVE_TXNS) {
       for (int i = 0; i < LOCK_BATCH_SIZE; i++) {
         if (batch_offset >= batch_message->data_size()) {
           // Oops we ran out of txns in this batch. Stop adding txns for now.
@@ -279,7 +281,6 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
         pending_txns++;
         tasks[Task::Locking]++;
       }
-      goto END;
     }
 
   END:

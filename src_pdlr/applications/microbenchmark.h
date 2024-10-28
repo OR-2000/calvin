@@ -57,7 +57,8 @@ class Microbenchmark : public Application {
                      int num_keys,
                      int key_start,
                      int key_limit,
-                     int part);
+                     int part,
+                     bool is_uniform);
   Microbenchmark() : rnd_(), zipf_(&rnd_, SKEW, DB_SIZE) {}
 };
 

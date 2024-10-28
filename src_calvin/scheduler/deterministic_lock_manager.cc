@@ -15,7 +15,7 @@ using std::vector;
 DeterministicLockManager::DeterministicLockManager(deque<TxnProto*>* ready_txns,
                                                    Configuration* config)
     : configuration_(config), ready_txns_(ready_txns) {
-  for (int i = 0; i < TABLE_SIZE; i++)
+  for (int i = 0; i < LOCK_TABLE_SIZE; i++)
     lock_table_[i] = new deque<KeysList>();
 }
 

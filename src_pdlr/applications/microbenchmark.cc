@@ -23,7 +23,8 @@ void Microbenchmark::GetRandomKeys(set<int>* keys,
                                    int num_keys,
                                    int key_start,
                                    int key_limit,
-                                   int part) {
+                                   int part,
+                                   bool is_uniform) {
   assert(key_start % nparts == 0);
   keys->clear();
   for (int i = 0; i < num_keys; i++) {
@@ -31,7 +32,8 @@ void Microbenchmark::GetRandomKeys(set<int>* keys,
     int key;
     do {
       key = key_start + part +
-            nparts * (zipf_() % ((key_limit - key_start) / nparts));
+            nparts * (((is_uniform) ? rand() : zipf_()) %
+                      ((key_limit - key_start) / nparts));
     } while (keys->count(key));
     keys->insert(key);
   }
@@ -65,11 +67,13 @@ TxnProto* Microbenchmark::MicroTxnSP(int64 txn_id, int part) {
   // int hotkey = part + nparts * (rand() % hot_records);
   // txn->add_read_write_set(IntToString(hotkey));
 
+  bool is_uniform = (rand() % 100) < UNIFORM_KEY_SELECTION_RATIO;
+
   // Insert set of RW_SET_SIZE - 1 random cold keys from specified partition
   // into read/write set.
   set<int> keys;
   GetRandomKeys(&keys, RW_SET_SIZE, nparts * hot_records, nparts * DB_SIZE,
-                part);
+                part, is_uniform);  // uniform dist
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
 
@@ -92,15 +96,17 @@ TxnProto* Microbenchmark::MicroTxnMP(int64 txn_id, int part1, int part2) {
   txn->add_read_write_set(IntToString(hotkey1));
   txn->add_read_write_set(IntToString(hotkey2));
 
+  bool is_uniform = (rand() % 100) < UNIFORM_KEY_SELECTION_RATIO;
+
   // Insert set of RW_SET_SIZE/2 - 1 random cold keys from each partition into
   // read/write set.
   set<int> keys;
   GetRandomKeys(&keys, RW_SET_SIZE / 2 - 1, nparts * hot_records,
-                nparts * DB_SIZE, part1);
+                nparts * DB_SIZE, part1, is_uniform);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
   GetRandomKeys(&keys, RW_SET_SIZE / 2 - 1, nparts * hot_records,
-                nparts * DB_SIZE, part2);
+                nparts * DB_SIZE, part2, is_uniform);
   for (set<int>::iterator it = keys.begin(); it != keys.end(); ++it)
     txn->add_read_write_set(IntToString(*it));
 

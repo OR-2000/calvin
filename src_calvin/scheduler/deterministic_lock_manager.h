@@ -17,7 +17,7 @@
 using std::deque;
 using std::tr1::unordered_map;
 
-#define TABLE_SIZE 1000000
+#define LOCK_TABLE_SIZE 1000000
 
 class TxnProto;
 
@@ -36,7 +36,7 @@ class DeterministicLockManager {
       hash = hash ^ (key[i]);
       hash = hash * 16777619;
     }
-    return hash % TABLE_SIZE;
+    return hash % LOCK_TABLE_SIZE;
   }
 
   bool IsLocal(const Key& key) {
@@ -66,7 +66,7 @@ class DeterministicLockManager {
     deque<LockRequest>* locksrequest;
   };
 
-  deque<KeysList>* lock_table_[TABLE_SIZE];
+  deque<KeysList>* lock_table_[LOCK_TABLE_SIZE];
 
   // Queue of pointers to transactions that have acquired all locks that
   // they have requested. 'ready_txns_[key].front()' is the owner of the lock

@@ -16,7 +16,7 @@ DeterministicLockManager::DeterministicLockManager(
     AtomicQueue<TxnProto*>* txns_queue,
     Configuration* config)
     : configuration_(config), txns_queue_(txns_queue) {
-  for (int i = 0; i < TABLE_SIZE; i++)
+  for (int i = 0; i < LOCK_TABLE_SIZE; i++)
     lock_table_[i] = new deque<KeysList>();
 }
 

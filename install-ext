@@ -6,6 +6,7 @@ sudo apt-get update
 sudo apt install unzip libtool libtool-bin uuid-dev python-is-python3 python2
 sudo ln -sf /usr/bin/python2 /usr/bin/python # google test ?
 
+rm -rf ext
 mkdir ext
 cd ext
 
@@ -26,7 +27,7 @@ tar xzf protobuf-2.5.0.tar.gz
 rm protobuf-2.5.0.tar.gz
 mv protobuf-2.5.0 protobuf
 cd protobuf
-./configure --prefix=$PWD
+./configure --prefix=$PWD --enable-debug
 make -j
 cd ..
 
@@ -36,7 +37,7 @@ unzip gtest-1.6.0.zip
 rm gtest-1.6.0.zip
 mv gtest-1.6.0 googletest
 cd googletest
-./configure --prefix=$PWD
+./configure --prefix=$PWD --enable-debug
 make -j
 cd ..
 
@@ -49,7 +50,7 @@ cd ../
 mv zeromq2-x zeromq
 cd zeromq
 ./autogen.sh
-./configure --prefix=$PWD
+./configure --prefix=$PWD --enable-debug
 make -j
 make install
 cd ..

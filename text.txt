@@ -1,0 +1,62 @@
+
+diff -r src_calvin_vector_vll/sequencer/sequencer.cc src_calvin/sequencer/sequencer.cc
+20a21
+> #include "common/debug.hh"
+129a131,132
+>   PrintCpu("RunWriter", 0);
+> 
+173,190d175
+< #ifdef PREFETCHING
+<     // Include txn requests from earlier that have now had time to prefetch.
+<     while (!deconstructor_invoked_ &&
+<            GetTime() < epoch_start + epoch_duration_) {
+<       multimap<double, TxnProto*>::iterator it = fetching_txns.begin();
+<       if (it == fetching_txns.end() || it->first > GetTime() ||
+<           batch.data_size() >= MAX_LOCK_BATCH_SIZE) {
+<         break;
+<       }
+<       TxnProto* txn = it->second;
+<       fetching_txns.erase(it);
+<       string txn_string;
+<       txn->SerializeToString(&txn_string);
+<       batch.add_data(txn_string);
+<       delete txn;
+<     }
+< #endif
+< 
+201,218c186,187
+< #ifdef LATENCY_TEST
+<         if (txn->txn_id() % SAMPLE_RATE == 0) {
+<           sequencer_recv[txn->txn_id() / SAMPLE_RATE] =
+<               epoch_start +
+<               epoch_duration_ * (static_cast<double>(rand()) / RAND_MAX);
+<         }
+< #endif
+< #ifdef PREFETCHING
+<         double wait_time = PrefetchAll(storage_, txn);
+<         if (wait_time > 0) {
+<           fetching_txns.insert(std::make_pair(epoch_start + wait_time, txn));
+<         } else {
+<           txn->SerializeToString(&txn_string);
+<           batch.add_data(txn_string);
+<           txn_id_offset++;
+<           delete txn;
+<         }
+< #else
+---
+> 
+>         // Find a bad transaction
+220,221d188
+<           // printf("Find a bad transaction,txn_id is %d.
+<           // \n",(int)txn->txn_id());
+230d196
+< #endif
+233,234c199,200
+<     // printf("Batch size is %d\n", batch.data_size());
+<     //  Send this epoch's requests to Paxos service.
+---
+> 
+>     // Send this epoch's requests to Paxos service.
+248a215,216
+>   PrintCpu("RunReader", 0);
+> 

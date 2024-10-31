@@ -18,7 +18,7 @@
 #include "common/configuration.h"
 #include "common/connection.h"
 #include "common/utils.h"
-#include "common/definitions.hh"
+#include "common/debug.hh"
 #include "proto/message.pb.h"
 #include "proto/txn.pb.h"
 #ifdef PAXOS
@@ -71,20 +71,14 @@ Sequencer::Sequencer(Configuration* conf,
   // pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
   CPU_ZERO(&cpuset);
-  // CPU_SET(4, &cpuset);
-  // CPU_SET(5, &cpuset);
-  CPU_SET(33, &cpuset);
-  // CPU_SET(7, &cpuset);
+  CPU_SET(SEQUENCER_WRITER_CORE, &cpuset);
   pthread_attr_setaffinity_np(&attr_writer, sizeof(cpu_set_t), &cpuset);
 
   pthread_create(&writer_thread_, &attr_writer, RunSequencerWriter,
                  reinterpret_cast<void*>(this));
 
   CPU_ZERO(&cpuset);
-  // CPU_SET(4, &cpuset);
-  // CPU_SET(5, &cpuset);
-  // CPU_SET(6, &cpuset);
-  CPU_SET(34, &cpuset);
+  CPU_SET(SEQUENCER_READER_CORE, &cpuset);
   pthread_attr_t attr_reader;
   pthread_attr_init(&attr_reader);
   pthread_attr_setaffinity_np(&attr_reader, sizeof(cpu_set_t), &cpuset);
@@ -134,6 +128,8 @@ double PrefetchAll(Storage* storage, TxnProto* txn) {
 #endif
 
 void Sequencer::RunWriter() {
+  PrintCpu("RunWriter", 0);
+
   Spin(1);
 
 #ifdef PAXOS
@@ -216,6 +212,8 @@ void Sequencer::RunWriter() {
 }
 
 void Sequencer::RunReader() {
+  PrintCpu("RunReader", 0);
+
   Spin(1);
 #ifdef PAXOS
   Paxos paxos(ZOOKEEPER_CONF, true);

@@ -13,11 +13,12 @@
 #include "common/configuration.h"
 #include "scheduler/lock_manager.h"
 #include "common/utils.h"
+#include "common/definitions.hh"
 
 using std::deque;
 using std::tr1::unordered_map;
 
-#define LOCK_TABLE_SIZE 1000000
+// #define LOCK_TABLE_SIZE 1000000
 
 class TxnProto;
 

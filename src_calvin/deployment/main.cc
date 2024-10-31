@@ -119,6 +119,16 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  cpu_set_t cpuset;
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  // pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+  CPU_ZERO(&cpuset);
+  CPU_SET(MAIN_PROCESS_CORE, &cpuset);
+
+  pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+
   std::cout << "MAX_ACTIVE_TXNS: " << MAX_ACTIVE_TXNS << std::endl;
   std::cout << "LOCK_BATCH_SIZE: " << LOCK_BATCH_SIZE << std::endl;
   std::cout << "HOT: " << HOT << std::endl;
@@ -126,7 +136,6 @@ int main(int argc, char** argv) {
   std::cout << "RW_SET_SIZE: " << RW_SET_SIZE << std::endl;
   std::cout << "DB_SIZE: " << DB_SIZE << std::endl;
   std::cout << "NUM_CORE: " << NUM_CORE << std::endl;
-  std::cout << "NUM_THREADS: " << NUM_THREADS << std::endl;
   std::cout << "NUM_BACKGROUND_THREADS: " << NUM_BACKGROUND_THREADS
             << std::endl;
   std::cout << "NUM_WORKERS_CORE: " << NUM_WORKERS_CORE << std::endl;

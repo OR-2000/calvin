@@ -8,6 +8,8 @@
 
 #include "common/configuration.h"
 #include "common/utils.h"
+#include "common/definitions.hh"
+#include "common/debug.hh"
 
 using zmq::socket_t;
 
@@ -56,11 +58,8 @@ ConnectionMultiplexer::ConnectionMultiplexer(Configuration* config)
   // pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
   CPU_ZERO(&cpuset);
-  CPU_SET(35, &cpuset);
-  // CPU_SET(4, &cpuset);
-  // CPU_SET(5, &cpuset);
-  // CPU_SET(6, &cpuset);
-  // CPU_SET(7, &cpuset);
+  CPU_SET(MULTIPLEXER_CORE, &cpuset);
+
   pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 
   // Start Multiplexer main loop running in background thread.
@@ -153,6 +152,8 @@ Connection* ConnectionMultiplexer::NewConnection(
 }
 
 void ConnectionMultiplexer::Run() {
+  PrintCpu("Multiplexer", 0);
+
   MessageProto message;
   zmq::message_t msg;
 

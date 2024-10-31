@@ -36,6 +36,8 @@
 //           to get COLD_CUTOFF
 #include "sequencer/sequencer.h"  // COLD_CUTOFF and buffers in LATENCY_TEST
 
+#include "common/debug.hh"
+
 using std::map;
 using std::pair;
 using std::string;
@@ -88,7 +90,7 @@ DeterministicScheduler::DeterministicScheduler(Configuration* conf,
   // pthread_attr_setdetachstate(&attr1, PTHREAD_CREATE_DETACHED);
 
   CPU_ZERO(&cpuset);
-  CPU_SET(32, &cpuset);
+  CPU_SET(LOCK_MANAGER_CORE, &cpuset);
   pthread_attr_setaffinity_np(&attr1, sizeof(cpu_set_t), &cpuset);
   pthread_create(&lock_manager_thread_, &attr1, LockManagerThread,
                  reinterpret_cast<void*>(this));
@@ -103,7 +105,7 @@ DeterministicScheduler::DeterministicScheduler(Configuration* conf,
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     CPU_ZERO(&cpuset);
-    CPU_SET(i % NUM_WORKERS_CORE, &cpuset);
+    CPU_SET(GET_WORKER_CORE(i), &cpuset);
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 
     pthread_create(&(threads_[i]), &attr, RunWorkerThread,
@@ -131,6 +133,8 @@ void* DeterministicScheduler::RunWorkerThread(void* arg) {
       reinterpret_cast<pair<int, DeterministicScheduler*>*>(arg)->second;
 
   unordered_map<string, StorageManager*> active_txns;
+
+  PrintCpu("Worker", thread);
 
   // Begin main loop.
   MessageProto message;
@@ -212,6 +216,8 @@ MessageProto* GetBatch(int batch_id, Connection* connection) {
 }
 
 void* DeterministicScheduler::LockManagerThread(void* arg) {
+  PrintCpu("Lock Manager", 0);
+
   DeterministicScheduler* scheduler =
       reinterpret_cast<DeterministicScheduler*>(arg);
 
@@ -232,58 +238,111 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
                                         "LoadNextBatch", "AdvanceBatch",
                                         "Locking", "ProcessReadyTransaction"};
 
-  TxnProto* done_txn;
+  // TxnProto* done_txn;
 
   while (true) {
-    if (scheduler->done_queue->Pop(&done_txn)) {
+    //   if (scheduler->done_queue->Pop(&done_txn)) {
+    //     executing_txns--;
+    //     if (done_txn->writers_size() == 0 ||
+    //         rand() % done_txn->writers_size() == 0)
+    //       txns++;
+
+    //     // We have received a finished transaction back, release the lock
+    //     scheduler->lock_manager_->Release(done_txn);
+    //     delete done_txn;
+    //     tasks[Task::ProcessDoneTransaction]++;
+    //     goto END;
+    //   }
+
+    //   // Have we run out of txns in our batch? Let's get some new ones.
+    //   if (batch_message == NULL) {
+    //     batch_message = GetBatch(batch_number, scheduler->batch_connection_);
+    //     if (batch_message != NULL)
+    //       tasks[Task::LoadNextBatch] += batch_message->data_size();
+    //     // Done with current batch, get next.
+    //     goto END;
+    //   } else if (batch_offset >= batch_message->data_size()) {
+    //     batch_offset = 0;
+    //     batch_number++;
+    //     delete batch_message;
+    //     batch_message = GetBatch(batch_number, scheduler->batch_connection_);
+
+    //     // Current batch has remaining txns, grab up to 10.
+    //     if (batch_message != NULL)
+    //       tasks[Task::AdvanceBatch] += batch_message->data_size();
+    //     goto END;
+    //   }
+
+    //   if (executing_txns + pending_txns < MAX_ACTIVE_TXNS) {
+    //     for (int i = 0; i < LOCK_BATCH_SIZE; i++) {
+    //       if (batch_offset >= batch_message->data_size()) {
+    //         // Oops we ran out of txns in this batch. Stop adding txns for
+    //         now. break;
+    //       }
+    //       TxnProto* txn = new TxnProto();
+    //       txn->ParseFromString(batch_message->data(batch_offset));
+    //       batch_offset++;
+
+    //       scheduler->lock_manager_->Lock(txn);
+    //       pending_txns++;
+    //       tasks[Task::Locking]++;
+    //     }
+    //   }
+
+    // END:
+    //   // Start executing any and all ready transactions to get them off our
+    //   plate while (!scheduler->ready_txns_->empty()) {
+    //     TxnProto* txn = scheduler->ready_txns_->front();
+    //     scheduler->ready_txns_->pop_front();
+    //     pending_txns--;
+    //     executing_txns++;
+
+    //     scheduler->txns_queue->Push(txn);
+    //     tasks[Task::ProcessReadyTransaction]++;
+    //   }
+
+    TxnProto* done_txn;
+    bool got_it = scheduler->done_queue->Pop(&done_txn);
+    if (got_it == true) {
+      // We have received a finished transaction back, release the lock
+      scheduler->lock_manager_->Release(done_txn);
       executing_txns--;
+
       if (done_txn->writers_size() == 0 ||
           rand() % done_txn->writers_size() == 0)
         txns++;
 
-      // We have received a finished transaction back, release the lock
-      scheduler->lock_manager_->Release(done_txn);
       delete done_txn;
-      tasks[Task::ProcessDoneTransaction]++;
-      goto END;
-    }
 
-    // Have we run out of txns in our batch? Let's get some new ones.
-    if (batch_message == NULL) {
-      batch_message = GetBatch(batch_number, scheduler->batch_connection_);
-      if (batch_message != NULL)
-        tasks[Task::LoadNextBatch] += batch_message->data_size();
-      // Done with current batch, get next.
-      goto END;
-    } else if (batch_offset >= batch_message->data_size()) {
-      batch_offset = 0;
-      batch_number++;
-      delete batch_message;
-      batch_message = GetBatch(batch_number, scheduler->batch_connection_);
+    } else {
+      // Have we run out of txns in our batch? Let's get some new ones.
+      if (batch_message == NULL) {
+        batch_message = GetBatch(batch_number, scheduler->batch_connection_);
 
-      // Current batch has remaining txns, grab up to 10.
-      if (batch_message != NULL)
-        tasks[Task::AdvanceBatch] += batch_message->data_size();
-      goto END;
-    }
+        // Done with current batch, get next.
+      } else if (batch_offset >= batch_message->data_size()) {
+        batch_offset = 0;
+        batch_number++;
+        delete batch_message;
+        batch_message = GetBatch(batch_number, scheduler->batch_connection_);
 
-    if (executing_txns + pending_txns < MAX_ACTIVE_TXNS) {
-      for (int i = 0; i < LOCK_BATCH_SIZE; i++) {
-        if (batch_offset >= batch_message->data_size()) {
-          // Oops we ran out of txns in this batch. Stop adding txns for now.
-          break;
+        // Current batch has remaining txns, grab up to 10.
+      } else if (executing_txns + pending_txns < MAX_ACTIVE_TXNS) {
+        for (int i = 0; i < LOCK_BATCH_SIZE; i++) {
+          if (batch_offset >= batch_message->data_size()) {
+            // Oops we ran out of txns in this batch. Stop adding txns for now.
+            break;
+          }
+          TxnProto* txn = new TxnProto();
+          txn->ParseFromString(batch_message->data(batch_offset));
+          batch_offset++;
+
+          scheduler->lock_manager_->Lock(txn);
+          pending_txns++;
         }
-        TxnProto* txn = new TxnProto();
-        txn->ParseFromString(batch_message->data(batch_offset));
-        batch_offset++;
-
-        scheduler->lock_manager_->Lock(txn);
-        pending_txns++;
-        tasks[Task::Locking]++;
       }
     }
 
-  END:
     // Start executing any and all ready transactions to get them off our plate
     while (!scheduler->ready_txns_->empty()) {
       TxnProto* txn = scheduler->ready_txns_->front();
@@ -292,7 +351,6 @@ void* DeterministicScheduler::LockManagerThread(void* arg) {
       executing_txns++;
 
       scheduler->txns_queue->Push(txn);
-      tasks[Task::ProcessReadyTransaction]++;
     }
 
     // Report throughput.
